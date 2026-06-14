@@ -1,0 +1,13 @@
+[package]
+name = "nebulark-awg"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nebulark-common = { path = "../nebulark-common"}
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+base64 = "0.22"

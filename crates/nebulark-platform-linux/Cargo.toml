@@ -1,0 +1,18 @@
+[package]
+name = "nebulark-platform-linux"
+version.workspace = true
+edition.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rtnetlink = "0.13"
+nix = { version = "0.27", features = ["net"] }
+
+[dependencies]
+nebulark-common = { path = "../nebulark-common"}
+nebulark-core = { path = "../nebulark-core"}
+nebulark-awg = { path = "../nebulark-awg"}
+tokio = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = "0.1.44"

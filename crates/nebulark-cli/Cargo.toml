@@ -1,0 +1,23 @@
+[package]
+name = "nebulark-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "nebulark"
+path = "src/main.rs"
+
+[dependencies]
+nebulark-common = { path = "../nebulark-common"}
+nebulark-core = { path = "../nebulark-core"}
+nebulark-awg = { path = "../nebulark-awg"}
+nebulark-platform-linux = { path = "../nebulark-platform-linux"}
+nebulark-platform-windows = { path = "../nebulark-platform-windows"}
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+dirs-next = "2.0.0"
+serde_json = "1"
+serde = { workspace = true }

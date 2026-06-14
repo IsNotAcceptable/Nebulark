@@ -1,0 +1,15 @@
+[package]
+name = "nebulark-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nebulark-common = { path = "../nebulark-common"}
+nebulark-awg = { path = "../nebulark-awg"}
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+async-trait = { workspace = true }
+toml = { workspace = true }
