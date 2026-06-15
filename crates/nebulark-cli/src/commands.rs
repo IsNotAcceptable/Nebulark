@@ -95,9 +95,30 @@ pub async fn status() -> anyhow::Result<()> {
         println!("Status: Disconnected");
         return Ok(());
     }
-    let resp = ipc_call(IpcRequest::Status).await?;
-    println!("Status: {}", resp.message);
+
+    match ipc_call(IpcRequest::Status).await {
+        Ok(resp) => println!("Status: {}", resp.message),
+        Err(_) => {
+            let _ = std::fs::remove_file(socket_path());
+            let _ = std::fs::remove_file(crate::daemon::pid_path());
+            println!("Status: Disconnected (stale socket removed)");
+        }
+    }
     Ok(())
+}
+
+pub async fn status_check() -> anyhow::Result<bool> {
+    if !socket_path().exists() {
+        return Ok(false);
+    }
+    match ipc_call(IpcRequest::Status).await {
+        Ok(resp) => Ok(resp.ok),
+        Err(_) => {
+            let _ = std::fs::remove_file(socket_path());
+            let _ = std::fs::remove_file(crate::daemon::pid_path());
+            Ok(false)
+        }
+    }
 }
 
 pub async fn import(

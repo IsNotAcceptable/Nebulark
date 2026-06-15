@@ -14,6 +14,11 @@ impl ProfileManager {
     pub fn load(config_path: impl AsRef<Path>) -> Result<Self> {
         let config_path = config_path.as_ref().to_path_buf();
 
+        if let Some(parent) = config_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| Error::Config(format!("mkdir failed: {e}")))?;
+        }
+
         let config = if config_path.exists() {
             let raw = std::fs::read_to_string(&config_path)
                 .map_err(|e| Error::Config(format!("read failed: {e}")))?;
@@ -28,14 +33,15 @@ impl ProfileManager {
     }
 
     pub fn save(&self) -> Result<()> {
-        if let Some(parent) = self.config_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| Error::Config(format!("mkdir failed: {e}")))?;
-        }
         let raw = toml::to_string_pretty(&self.config)
             .map_err(|e| Error::Config(format!("serialize failed: {e}")))?;
-        std::fs::write(&self.config_path, raw)
+
+        let tmp = self.config_path.with_extension("toml.tmp");
+        std::fs::write(&tmp, &raw)
             .map_err(|e| Error::Config(format!("write failed: {e}")))?;
+        std::fs::rename(&tmp, &self.config_path)
+            .map_err(|e| Error::Config(format!("rename failed: {e}")))?;
+
         debug!("Config saved to {:?}", self.config_path);
         Ok(())
     }

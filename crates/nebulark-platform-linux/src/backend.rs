@@ -37,6 +37,10 @@ impl PlatformBackend for LinuxBackend {
             Error::Platform(format!("awg setconf failed: {e}"))
         })?;
 
+        for peer in &cfg.peers {
+            apply_peer_settings(iface, peer).await?;
+        }
+
         netdev::setup_iface(iface, &cfg.addresses, cfg.mtu).await?;
 
         for peer in &cfg.peers {
@@ -66,4 +70,36 @@ impl PlatformBackend for LinuxBackend {
         let client = UapiClient::new(&handle.interface);
         client.get_stats().await
     }
+}
+
+async fn apply_peer_settings(
+    iface: &str,
+    peer: &nebulark_common::types::PeerConfig,
+) -> nebulark_common::error::Result<()> {
+    use crate::process::run;
+
+    let mut args = vec![
+        "set".to_string(),
+        iface.to_string(),
+        "peer".to_string(),
+        peer.public_key.0.clone(),
+    ];
+
+    if let Some(ep) = &peer.endpoint {
+        args.push("endpoint".to_string());
+        args.push(ep.to_string());
+    }
+
+    if let Some(ka) = peer.keepalive {
+        args.push("persistent-keepalive".to_string());
+        args.push(ka.to_string());
+    }
+
+    if !peer.allowed_ips.is_empty() {
+        args.push("allowed-ips".to_string());
+        args.push(peer.allowed_ips.join(","));
+    }
+
+    let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    run("awg", &args_refs).await.map(|_| ())
 }

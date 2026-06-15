@@ -80,6 +80,7 @@ struct RegisterResponse {
 #[derive(Deserialize)]
 struct RegisterResult {
     id: String,
+    #[allow(dead_code)]
     token: String,
     config: WarpConfig,
 }
@@ -201,7 +202,7 @@ pub async fn generate(
         h1 = preset.h1, h2 = preset.h2, h3 = preset.h3, h4 = preset.h4,
     );
 
-    let profile_name = format!("WARP-{}", &result.result.id[..8]);
+    let profile_name = format!("WARP-{}", &result.id[..8]);
 
     Ok(GeneratedConfig { conf, profile_name })
 }

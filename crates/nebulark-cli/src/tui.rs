@@ -2,7 +2,6 @@ use console::{style, Term};
 use dialoguer::{theme::ColorfulTheme, Select, Input};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
-use crate::warp;
 
 fn theme() -> ColorfulTheme {
     ColorfulTheme::default()
@@ -15,7 +14,14 @@ pub async fn run_menu(config_path: &str) -> anyhow::Result<()> {
         term.clear_screen()?;
         print_banner();
 
-        let connected = crate::daemon::socket_path().exists();
+        let connected = if crate::daemon::socket_path().exists() {
+            matches!(
+        crate::commands::status_check().await,
+        Ok(true)
+    )
+        } else {
+            false
+        };
         let status_str = if connected {
             style("● Connected").green().bold().to_string()
         } else {
@@ -296,14 +302,32 @@ async fn menu_import(config_path: &str) -> anyhow::Result<()> {
         .with_prompt("Path to .conf file")
         .interact_text()?;
 
-    let path = path.trim();
-    if !std::path::Path::new(path).exists() {
-        println!("  {} File not found: {path}", style("✗").red());
-        pause();
-        return Ok(());
+    let path = path.trim().to_string();
+
+    if let Some(parent) = std::path::Path::new(config_path).parent() {
+        let _ = std::fs::create_dir_all(parent);
     }
 
-    let default_name = std::path::Path::new(path)
+    let content = if std::path::Path::new(&path).exists() {
+        std::fs::read_to_string(&path)
+            .or_else(|_| {
+                read_with_sudo(&path)
+            })?
+    } else {
+        match read_with_sudo(&path) {
+            Ok(c) => c,
+            Err(_) => {
+                println!("  {} File not found: {path}", style("✗").red());
+                pause();
+                return Ok(());
+            }
+        }
+    };
+
+    let tmp = std::env::temp_dir().join("nebulark_import_tmp.conf");
+    std::fs::write(&tmp, &content)?;
+
+    let default_name = std::path::Path::new(&path)
         .file_stem()
         .unwrap_or_default()
         .to_string_lossy()
@@ -314,12 +338,25 @@ async fn menu_import(config_path: &str) -> anyhow::Result<()> {
         .default(default_name)
         .interact_text()?;
 
-    match crate::commands::import(config_path, path, Some(&name)).await {
-        Ok(_) => println!("  {} Profile '{}' imported", style("✓").green(), style(&name).cyan()),
+    match crate::commands::import(config_path, tmp.to_str().unwrap(), Some(&name)).await {
+        Ok(_) => println!("\n  {} Profile '{}' imported", style("✓").green(), style(&name).cyan()),
         Err(e) => println!("  {} {e}", style("✗").red()),
     }
+
+    let _ = std::fs::remove_file(tmp);
     pause();
     Ok(())
+}
+
+fn read_with_sudo(path: &str) -> anyhow::Result<String> {
+    let out = std::process::Command::new("sudo")
+        .args(["cat", path])
+        .output()?;
+    if out.status.success() {
+        Ok(String::from_utf8(out.stdout)?)
+    } else {
+        anyhow::bail!("sudo cat failed: {}", String::from_utf8_lossy(&out.stderr))
+    }
 }
 
 fn menu_list(config_path: &str) -> anyhow::Result<()> {

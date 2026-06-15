@@ -13,6 +13,7 @@ pub async fn run_daemon(cfg: TunnelConfig, backend: Arc<dyn PlatformBackend>) {
 
     if let Err(e) = tunnel.connect(&cfg).await {
         error!("Connect failed: {e}");
+        let _ = std::fs::remove_file(crate::daemon::socket_path());
         std::process::exit(1);
     }
     println!("✓ Connected");
