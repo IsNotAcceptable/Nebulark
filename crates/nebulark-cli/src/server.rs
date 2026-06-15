@@ -29,7 +29,7 @@ pub async fn run_daemon(cfg: TunnelConfig, backend: Arc<dyn PlatformBackend>) {
             return;
         }
     };
-    let _ = std::fs::set_permissions(&sock, std::fs::Permissions::from_mode(0o600));
+    let _ = std::fs::set_permissions(&sock, std::fs::Permissions::from_mode(0o666));
     info!("IPC listening on {sock:?}");
 
     loop {

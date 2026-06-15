@@ -21,3 +21,17 @@ clap = { workspace = true }
 dirs-next = "2.0.0"
 serde_json = "1"
 serde = { workspace = true }
+dialoguer = "0.11"
+console = "0.15"
+indicatif = "0.17"
+reqwest  = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+rand = "0.8"
+hex = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+warp = "0.4.3"
+base64 = "0.22.1"
+
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.27", features = ["user"] }

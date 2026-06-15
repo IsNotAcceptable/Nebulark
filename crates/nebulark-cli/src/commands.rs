@@ -1,13 +1,12 @@
 use crate::daemon::{socket_path, IpcRequest, IpcResponse};
 use nebulark_awg::parser::parse_conf;
 use nebulark_common::config::Profile;
-use nebulark_core::{platform::PlatformBackend, profiles::ProfileManager, tunnel::TunnelManager};
+use nebulark_core::{platform::PlatformBackend, profiles::ProfileManager};
 use std::sync::Arc;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::UnixStream,
 };
-use tracing::info;
 
 pub fn make_backend() -> Arc<dyn PlatformBackend> {
     #[cfg(target_os = "linux")]
@@ -30,34 +29,55 @@ pub async fn connect(config_path: &str, target: &str) -> anyhow::Result<()> {
     }
 
     let mgr = ProfileManager::load(config_path)?;
-    let cfg = if std::path::Path::new(target).exists() {
-        info!("Loading .conf file: {target}");
-        let raw = std::fs::read_to_string(target)?;
-        parse_conf(&raw)?
-    } else {
-        info!("Loading profile: {target}");
+    if !std::path::Path::new(target).exists() {
         mgr.get(target)
-            .ok_or_else(|| anyhow::anyhow!("Profile '{target}' not found"))?
-            .tunnel
-            .clone()
-    };
+            .ok_or_else(|| anyhow::anyhow!("Profile '{target}' not found"))?;
+    }
 
     let exe = std::env::current_exe()?;
-    std::process::Command::new(exe)
-        .args(["__daemon", target])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()?;
 
-    for _ in 0..50 {
+    let log_path = std::env::temp_dir().join("nebulark-daemon.log");
+    let log_file = std::fs::File::create(&log_path)?;
+
+    let mut cmd = if nix::unistd::getuid().is_root() {
+        let mut c = std::process::Command::new(&exe);
+        c.args(["--config", config_path, "daemon", target]);
+        c
+    } else {
+        let mut c = std::process::Command::new("sudo");
+        c.args([
+            "-E",
+            exe.to_str().unwrap(),
+            "--config", config_path,
+            "daemon", target,
+        ]);
+        c
+    };
+
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(log_file.try_clone()?)
+        .stderr(log_file)
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("Failed to spawn daemon: {e}"))?;
+
+    for i in 0..80 {
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         if socket_path().exists() {
             println!("✓ Connected");
             return Ok(());
         }
+        if i % 20 == 19 {
+            eprintln!("Waiting for daemon... ({} sec)", (i + 1) / 10);
+        }
     }
-    anyhow::bail!("Daemon did not start in time. Check logs with RUST_LOG=info.")
+
+    if let Ok(log) = std::fs::read_to_string(&log_path) {
+        if !log.is_empty() {
+            eprintln!("Daemon log:\n{log}");
+        }
+    }
+
+    anyhow::bail!("Daemon did not start in time.")
 }
 
 pub async fn disconnect() -> anyhow::Result<()> {
