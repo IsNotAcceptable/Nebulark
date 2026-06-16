@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::types::TunnelConfig;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Profile {

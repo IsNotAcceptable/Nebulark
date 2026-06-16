@@ -5,10 +5,12 @@ use tracing_subscriber::EnvFilter;
 
 fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env()
-            .add_directive("nebulark=info".parse()?)
-            .add_directive("nebulark_core=info".parse()?)
-            .add_directive("nebulark_platform_linux=info".parse()?))
+        .with_env_filter(
+            EnvFilter::from_default_env()
+                .add_directive("nebulark=info".parse()?)
+                .add_directive("nebulark_core=info".parse()?)
+                .add_directive("nebulark_platform_linux=info".parse()?),
+        )
         .with_writer(std::io::stderr)
         .init();
 
@@ -31,7 +33,8 @@ fn main() -> anyhow::Result<()> {
         "Nebulark",
         options,
         Box::new(|cc| Box::new(app::NebularkApp::new(cc))),
-    ).map_err(|e| anyhow::anyhow!("{e}"))
+    )
+    .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()> {
@@ -40,12 +43,14 @@ async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()
     use std::sync::Arc;
 
     let mgr = ProfileManager::load(config_path)?;
-    let cfg = mgr.get(profile)
+    let cfg = mgr
+        .get(profile)
         .ok_or_else(|| anyhow::anyhow!("Profile '{profile}' not found"))?
-        .tunnel.clone();
+        .tunnel
+        .clone();
 
     let backend: Arc<dyn PlatformBackend> = Arc::new(
-        nebulark_platform_linux::backend::LinuxBackend::new("nebulark0")
+        nebulark_platform_linux::backend::LinuxBackend::new("nebulark0"),
     );
     let tunnel = Arc::new(nebulark_core::tunnel::TunnelManager::new(backend));
 
@@ -87,9 +92,15 @@ async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()
                     }
                     Ok(daemon::IpcRequest::Status) => {
                         let state = tunnel.state().await;
-                        daemon::IpcResponse { ok: true, message: format!("{state:?}") }
+                        daemon::IpcResponse {
+                            ok: true,
+                            message: format!("{state:?}"),
+                        }
                     }
-                    Err(e) => daemon::IpcResponse { ok: false, message: e.to_string() },
+                    Err(e) => daemon::IpcResponse {
+                        ok: false,
+                        message: e.to_string(),
+                    },
                 };
                 let _ = writer
                     .write_all((serde_json::to_string(&resp).unwrap() + "\n").as_bytes())

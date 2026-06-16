@@ -47,45 +47,44 @@ pub fn parse_conf(input: &str) -> Result<TunnelConfig> {
 
         match section {
             Section::Interface => match key {
-                "PrivateKey"  => private_key = Some(PrivateKey(val.to_string())),
-                "ListenPort"  => listen_port = val.parse().ok(),
-                "Address"     => {
+                "PrivateKey" => private_key = Some(PrivateKey(val.to_string())),
+                "ListenPort" => listen_port = val.parse().ok(),
+                "Address" => {
                     for part in val.split(',') {
                         addresses.push(part.trim().to_string());
                     }
                 }
-                "MTU"         => mtu = val.parse().ok(),
-                "DNS"         => {
+                "MTU" => mtu = val.parse().ok(),
+                "DNS" => {
                     for part in val.split(',') {
                         if let Ok(ip) = part.trim().parse() {
                             dns.push(ip);
                         }
                     }
                 }
-                "Jc"   => obfs.jc   = val.parse().unwrap_or(0),
+                "Jc" => obfs.jc = val.parse().unwrap_or(0),
                 "Jmin" => obfs.jmin = val.parse().unwrap_or(0),
                 "Jmax" => obfs.jmax = val.parse().unwrap_or(0),
-                "S1"   => obfs.s1   = val.parse().unwrap_or(0),
-                "S2"   => obfs.s2   = val.parse().unwrap_or(0),
-                "S3"   => obfs.s3   = val.parse().unwrap_or(0),
-                "S4"   => obfs.s4   = val.parse().unwrap_or(0),
-                "H1"   => obfs.h1   = val.parse().unwrap_or(0),
-                "H2"   => obfs.h2   = val.parse().unwrap_or(0),
-                "H3"   => obfs.h3   = val.parse().unwrap_or(0),
-                "H4"   => obfs.h4   = val.parse().unwrap_or(0),
-                "I1"   => obfs.i1   = Some(val.to_string()), // храним as-is
-                _      => {}
+                "S1" => obfs.s1 = val.parse().unwrap_or(0),
+                "S2" => obfs.s2 = val.parse().unwrap_or(0),
+                "S3" => obfs.s3 = val.parse().unwrap_or(0),
+                "S4" => obfs.s4 = val.parse().unwrap_or(0),
+                "H1" => obfs.h1 = val.parse().unwrap_or(0),
+                "H2" => obfs.h2 = val.parse().unwrap_or(0),
+                "H3" => obfs.h3 = val.parse().unwrap_or(0),
+                "H4" => obfs.h4 = val.parse().unwrap_or(0),
+                "I1" => obfs.i1 = Some(val.to_string()), // храним as-is
+                _ => {}
             },
             Section::Peer => {
                 if let Some(peer) = current_peer.as_mut() {
                     match key {
-                        "PublicKey"           => peer.public_key = PublicKey(val.to_string()),
-                        "PresharedKey"        => peer.preshared_key = Some(val.to_string()),
-                        "Endpoint"            => peer.endpoint = val.parse::<SocketAddr>().ok(),
-                        "AllowedIPs"          => {
-                            peer.allowed_ips.extend(
-                                val.split(',').map(|s| s.trim().to_string())
-                            );
+                        "PublicKey" => peer.public_key = PublicKey(val.to_string()),
+                        "PresharedKey" => peer.preshared_key = Some(val.to_string()),
+                        "Endpoint" => peer.endpoint = val.parse::<SocketAddr>().ok(),
+                        "AllowedIPs" => {
+                            peer.allowed_ips
+                                .extend(val.split(',').map(|s| s.trim().to_string()));
                         }
                         "PersistentKeepalive" => peer.keepalive = val.parse().ok(),
                         _ => {}
@@ -101,8 +100,7 @@ pub fn parse_conf(input: &str) -> Result<TunnelConfig> {
     }
 
     Ok(TunnelConfig {
-        private_key: private_key
-            .ok_or_else(|| Error::Config("missing PrivateKey".into()))?,
+        private_key: private_key.ok_or_else(|| Error::Config("missing PrivateKey".into()))?,
         listen_port,
         addresses,
         mtu,
@@ -112,11 +110,18 @@ pub fn parse_conf(input: &str) -> Result<TunnelConfig> {
     })
 }
 
-enum Section { None, Interface, Peer }
+enum Section {
+    None,
+    Interface,
+    Peer,
+}
 
 fn uuid_stub() -> String {
-    format!("peer-{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .subsec_nanos())
+    format!(
+        "peer-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos()
+    )
 }

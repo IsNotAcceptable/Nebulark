@@ -22,14 +22,16 @@ impl ProfileManager {
         let config = if config_path.exists() {
             let raw = std::fs::read_to_string(&config_path)
                 .map_err(|e| Error::Config(format!("read failed: {e}")))?;
-            toml::from_str(&raw)
-                .map_err(|e| Error::Config(format!("parse failed: {e}")))?
+            toml::from_str(&raw).map_err(|e| Error::Config(format!("parse failed: {e}")))?
         } else {
             info!("No config found at {config_path:?}, using defaults");
             AppConfig::default()
         };
 
-        Ok(Self { config_path, config })
+        Ok(Self {
+            config_path,
+            config,
+        })
     }
 
     pub fn save(&self) -> Result<()> {
@@ -53,9 +55,10 @@ impl ProfileManager {
 
     pub fn add(&mut self, profile: Profile) -> Result<()> {
         if self.config.profiles.iter().any(|p| p.name == profile.name) {
-            return Err(Error::Config(
-                format!("profile '{}' already exists", profile.name)
-            ));
+            return Err(Error::Config(format!(
+                "profile '{}' already exists",
+                profile.name
+            )));
         }
         info!("Adding profile: {}", profile.name);
         self.config.profiles.push(profile);
@@ -73,7 +76,9 @@ impl ProfileManager {
     }
 
     pub fn default_profile(&self) -> Option<&Profile> {
-        self.config.default_profile.as_deref()
+        self.config
+            .default_profile
+            .as_deref()
             .and_then(|name| self.get(name))
     }
 }

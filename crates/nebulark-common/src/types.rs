@@ -29,9 +29,17 @@ pub struct AwgObfsParams {
 impl Default for AwgObfsParams {
     fn default() -> Self {
         Self {
-            jc: 4, jmin: 40, jmax: 70,
-            s1: 0, s2: 0, s3: 0, s4: 0,
-            h1: 0, h2: 0, h3: 0, h4: 0,
+            jc: 4,
+            jmin: 40,
+            jmax: 70,
+            s1: 0,
+            s2: 0,
+            s3: 0,
+            s4: 0,
+            h1: 0,
+            h2: 0,
+            h3: 0,
+            h4: 0,
             i1: None,
         }
     }
