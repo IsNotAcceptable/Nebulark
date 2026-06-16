@@ -36,11 +36,8 @@ impl ProfileManager {
         let raw = toml::to_string_pretty(&self.config)
             .map_err(|e| Error::Config(format!("serialize failed: {e}")))?;
 
-        let tmp = self.config_path.with_extension("toml.tmp");
-        std::fs::write(&tmp, &raw)
+        std::fs::write(&self.config_path, &raw)
             .map_err(|e| Error::Config(format!("write failed: {e}")))?;
-        std::fs::rename(&tmp, &self.config_path)
-            .map_err(|e| Error::Config(format!("rename failed: {e}")))?;
 
         debug!("Config saved to {:?}", self.config_path);
         Ok(())

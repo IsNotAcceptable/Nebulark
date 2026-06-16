@@ -1,5 +1,5 @@
 [package]
-name = "nebulark-cli"
+name = "nebulark-ui"
 version.workspace = true
 edition.workspace = true
 
@@ -13,25 +13,14 @@ nebulark-core = { path = "../nebulark-core"}
 nebulark-awg = { path = "../nebulark-awg"}
 nebulark-platform-linux = { path = "../nebulark-platform-linux"}
 nebulark-platform-windows = { path = "../nebulark-platform-windows"}
+eframe = { version = "0.27", features = ["default_fonts"] }
+egui = "0.27"
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-clap = { workspace = true }
-dirs-next = "2.0.0"
 serde_json = "1"
-serde = { workspace = true }
-dialoguer = "0.11"
-console = "0.15"
-indicatif = "0.17"
-reqwest  = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
-x25519-dalek = { version = "2", features = ["static_secrets"] }
-rand = "0.8"
-hex = "0.4"
-chrono = { version = "0.4", features = ["serde"] }
-warp = "0.4.3"
-base64 = "0.22.1"
-
-
-[target.'cfg(unix)'.dependencies]
+dirs-next = "2"
 nix = { version = "0.27", features = ["user"] }
+serde = { version = "1.0.228", features = ["derive"] }
+rfd = "0.14"
