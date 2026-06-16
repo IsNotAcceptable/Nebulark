@@ -28,11 +28,13 @@ impl UapiClient {
 
         if let Some(stdin) = child.stdin.take() {
             let mut stdin = stdin;
-            stdin.write_all(uapi_str.as_bytes())
+            stdin
+                .write_all(uapi_str.as_bytes())
                 .map_err(|e| Error::Platform(format!("awg stdin write failed: {e}")))?;
         }
 
-        let out = child.wait_with_output()
+        let out = child
+            .wait_with_output()
             .map_err(|e| Error::Platform(format!("awg wait failed: {e}")))?;
 
         if out.status.success() {

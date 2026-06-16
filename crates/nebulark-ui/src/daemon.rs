@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 pub fn socket_path() -> PathBuf {
     std::env::temp_dir().join("nebulark.sock")
@@ -58,12 +58,7 @@ pub fn spawn_daemon(exe: &std::path::Path, config_path: &str, profile: &str) -> 
     let log_file = std::fs::File::create(&log)?;
 
     std::process::Command::new("sudo")
-        .args([
-            exe.to_str().unwrap(),
-            "daemon",
-            config_path,
-            profile,
-        ])
+        .args([exe.to_str().unwrap(), "daemon", config_path, profile])
         .stdin(std::process::Stdio::null())
         .stdout(log_file.try_clone()?)
         .stderr(log_file)

@@ -33,9 +33,10 @@ impl PlatformBackend for LinuxBackend {
 
         let conf = to_uapi(cfg);
         let client = UapiClient::new(iface);
-        client.set_config(&conf).await.map_err(|e| {
-            Error::Platform(format!("awg setconf failed: {e}"))
-        })?;
+        client
+            .set_config(&conf)
+            .await
+            .map_err(|e| Error::Platform(format!("awg setconf failed: {e}")))?;
 
         for peer in &cfg.peers {
             apply_peer_settings(iface, peer).await?;
@@ -50,7 +51,9 @@ impl PlatformBackend for LinuxBackend {
         netdev::set_dns(iface, &cfg.dns).await?;
 
         info!("Linux tunnel up: {iface}");
-        Ok(TunnelHandle { interface: iface.clone() })
+        Ok(TunnelHandle {
+            interface: iface.clone(),
+        })
     }
 
     async fn destroy_tunnel(&self, handle: &TunnelHandle) -> Result<()> {
