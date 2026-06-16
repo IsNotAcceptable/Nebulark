@@ -1,6 +1,6 @@
 # 🌌 Nebulark
 
-> **AmneziaWG 2.0 mesh networking toolkit** - A high-performance, cross-platform solution for building secure mesh networks with AmneziaWG 2.0.
+> **AmneziaWG 2.0 client** - A high-performance, cross-platform GUI client for AmneziaWG 2.0 secure tunneling.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Language: Rust](https://img.shields.io/badge/Language-Rust-CE422B)](https://www.rust-lang.org/)
@@ -12,11 +12,11 @@
 
 Nebulark is a modular Rust framework for creating and managing WireGuard-based mesh networks. It provides:
 
--  **CLI tools** for network configuration and management
+-  **Native GUI** built with egui/eframe — minimal dark theme
 -  **Cryptographic primitives** (X25519 key exchange, base64 encoding)
 -  **Cross-platform support** (Linux, Windows)
 -  **Async-first architecture** (built on Tokio)
--  **AmneziaWG integration** (AWG - fork WireGuard)
+-  **AmneziaWG integration** (AWG - fork WireGuard with obfuscation)
 
 ---
 
@@ -28,7 +28,7 @@ Nebulark is organized as a **Rust workspace** with modular crates:
 
 | Crate | Purpose | Status |
 |-------|---------|--------|
-| **nebulark-cli** | Command-line interface for end users | Main entry point |
+| **nebulark-ui** | Native GUI application (egui/eframe) | Main entry point |
 | **nebulark-core** | Core networking and mesh logic | Foundation |
 | **nebulark-awg** | Async WireGuard wrapper | Protocol layer |
 | **nebulark-common** | Shared types and utilities | Shared |
@@ -37,14 +37,13 @@ Nebulark is organized as a **Rust workspace** with modular crates:
 
 ### Key Technologies
 
-- **Tokio** - Async runtime with full feature set
-- **Serde/JSON/TOML** - Configuration serialization
-- **Tracing** - Structured logging and diagnostics
-- **Clap** - CLI argument parsing
-- **egui/eframe** - GUI framework (future UI)
-- **X25519-Dalek** - Key exchange cryptography
-- **Warp** - HTTP server for API endpoints
-- **Reqwest** - HTTP client with TLS support
+- **Tokio** — Async runtime with full feature set
+- **egui/eframe** — Native GUI framework, dark theme
+- **Serde/TOML** — Configuration serialization
+- **Tracing** — Structured logging and diagnostics
+- **X25519-Dalek** — Key exchange cryptography
+- **Reqwest** — HTTP client for Cloudflare WARP API
+- **rfd** — Native file picker dialog
 
 ---
 
@@ -53,10 +52,9 @@ Nebulark is organized as a **Rust workspace** with modular crates:
 ### Prerequisites
 
 - Rust 1.75+ (2021 edition)
-- Cargo workspace support
 - Platform requirements:
-  - **Linux**: glibc-based systems
-  - **Windows**: Windows 10+
+  - **Linux**: `amneziawg-dkms` kernel module + `amneziawg-tools`
+  - **Windows**: Windows 10+ (Wintun driver, coming soon)
 
 ### Building
 
@@ -69,43 +67,42 @@ cd Nebulark
 cargo build --release
 
 # Build specific crate
-cargo build -p nebulark-cli --release
+cargo build -p nebulark-ui --release
 ```
 
 ### Running
 
 ```bash
-# Show CLI help
-./target/release/nebulark --help
+# Launch GUI (will prompt for sudo automatically)
+./target/release/nebulark
 
-# Run with debug logging
-RUST_LOG=debug ./target/release/nebulark [COMMAND]
+# Run daemon manually with debug logging
+RUST_LOG=debug sudo ./target/release/nebulark daemon ~/.config/nebulark/config.toml myprofile
 ```
 
 ---
 
 ## Crate Details
 
-### nebulark-cli
+### nebulark-ui
 
-Command-line interface for Nebulark operations.
+Native GUI application - main entry point for end users.
 
 **Key dependencies:**
 
-- `nebulark-core` - Main networking logic
-- `nebulark-awg` - WireGuard integration
-- `clap` - CLI parsing with derive macros
-- `dialoguer` - Interactive prompts
-- `console` - Terminal formatting
-- `indicatif` - Progress bars
-- `warp` - REST API server
+- `nebulark-core` - tunnel and profile management
+- `nebulark-awg` - AmneziaWG integration
+- `egui/eframe` - GUI framework
+- `rfd` - native file picker dialog
+- `reqwest` - Cloudflare WARP API client
 
 **Features:**
 
-- nteractive configuration wizard
-- JSON/TOML configuration support
-- Real-time status monitoring
-- HTTP API for remote management
+- Profile list with select/connect/delete
+- Native file picker for `.conf` import
+- Cloudflare WARP config generator (built-in CF API registration)
+- Daemon IPC (connect/disconnect without blocking UI)
+- Auto sudo elevation on launch
 
 ### nebulark-awg
 
@@ -159,44 +156,51 @@ Platform-specific implementations for Linux and Windows.
 
 ## Configuration
 
-Nebulark supports both JSON and TOML configuration formats:
+Profiles are stored in `~/.config/nebulark/config.toml`:
 
 ```toml
-# Example nebulark.toml
-[network]
-name = "my-mesh"
-listen_port = 51820
+[[profiles]]
+name = "my-profile"
 
-[peers]
-# Peer configurations here
-```
+[profiles.tunnel]
+private_key = "..."
+addresses = ["10.0.0.1/32"]
+dns = ["1.1.1.1"]
+mtu = 1280
 
-```json
-{
-  "network": {
-    "name": "my-mesh",
-    "listen_port": 51820
-  },
-  "peers": []
-}
+[[profiles.tunnel.peers]]
+public_key = "..."
+endpoint = "1.2.3.4:51820"
+allowed_ips = ["0.0.0.0/0", "::/0"]
+keepalive = 25
+
+[profiles.tunnel.obfs]
+jc = 4
+jmin = 40
+jmax = 70
+s1 = 0
+s2 = 0
+h1 = 1
+h2 = 2
+h3 = 3
+h4 = 4
 ```
 
 ---
 
 ## Logging & Diagnostics
 
-Nebulark uses `tracing` for structured logging:
-
 ```bash
-# Set log level
-RUST_LOG=nebulark=debug cargo run
+# Daemon log
+cat /tmp/nebulark-daemon.log
+
+# Run with verbose logging
+RUST_LOG=nebulark=debug ./target/release/nebulark
 
 # Filter specific modules
-RUST_LOG=nebulark_core=trace,nebulark_awg=debug cargo run
-
-# Use env-filter syntax
-RUST_LOG='nebulark[{ip="192.168.1.1"}]=debug' cargo run
+RUST_LOG=nebulark_core=info,nebulark_platform_linux=debug ./target/release/nebulark
 ```
+
 **Log levels:** trace, debug, info, warn, error
 
 ---
@@ -208,7 +212,7 @@ RUST_LOG='nebulark[{ip="192.168.1.1"}]=debug' cargo run
 cargo test --workspace
 
 # Run tests for specific crate
-cargo test -p nebulark-cli
+cargo test -p nebulark-core
 
 # Run tests with logging
 RUST_LOG=debug cargo test -- --nocapture
@@ -223,7 +227,7 @@ RUST_LOG=debug cargo test -- --nocapture
 ```
 Nebulark/
 ├── crates/
-│   ├── nebulark-cli/          # Entry point
+│   ├── nebulark-ui/           # GUI entry point
 │   ├── nebulark-core/         # Core logic
 │   ├── nebulark-awg/          # WireGuard wrapper
 │   ├── nebulark-common/       # Shared code
@@ -237,42 +241,44 @@ Nebulark/
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -am 'Add amazing feature'`
+3. Commit changes: `git commit -am 'feat: add amazing feature'`
 4. Push to branch: `git push origin feature/amazing-feature`
 5. Submit a pull request
 
 ### Code Standards
 
-Format code: `cargo fmt --all`
-Lint: `cargo clippy --all-targets --all-features`
-Document: `cargo doc --open`
+```bash
+cargo fmt --all
+cargo clippy --all-targets -- -D warnings
+cargo doc --open
+```
 
 ---
 
 ## Troubleshooting
 
-### Build Issues
+### No internet after connecting
 
-Issue: `error: failed to compile`
-
-Solution:
-
+Check that the `amneziawg` kernel module is loaded:
 ```bash
-# Update dependencies
-cargo update
-
-# Clean build
-cargo clean
-cargo build
+lsmod | grep amneziawg
+sudo modprobe amneziawg
 ```
 
-### Runtime Issues
+### Stale interface after crash
 
-Issue: `Permission denied on Linux`
-
-Solution: WireGuard requires elevated privileges:
 ```bash
-sudo ./target/release/nebulark [COMMAND]
+sudo ip link del nebulark0
+sudo ip -4 rule del table 51820 2>/dev/null
+sudo ip -6 rule del table 51820 2>/dev/null
+rm -f /tmp/nebulark.sock /tmp/nebulark.pid
+```
+
+### Permission denied
+
+The GUI automatically requests sudo on launch. If it fails:
+```bash
+sudo ./target/release/nebulark
 ```
 
 ---
@@ -280,21 +286,25 @@ sudo ./target/release/nebulark [COMMAND]
 ## Documentation
 
 - **API Docs:** `cargo doc --open`
-- **Module Documentation:** See individual crate READMEs
-- **Architecture:** See [Architecture](https://github.com/IsNotAcceptable/Nebulark/new/master?filename=README.md#architecture) section above
+- **Module Documentation:** See individual crate source
 
 ---
 
 ## License
-This project is licensed under the MIT License - see [LICENSE](https://github.com/IsNotAcceptable/Nebulark/new/LICENSE) file for details.
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Roadmap
 
-- [ ] Complete core mesh networking implementation
-- [ ] GUI application 
-- [ ] Peer auto-discovery
-- [ ] Docker integration
-- [ ] Comprehensive test suite
-- [ ] Performance benchmarks
+- [x] Linux backend (amneziawg kernel module)
+- [x] Native GUI (egui, dark theme)
+- [x] Profile import via file picker
+- [x] AWG 2.0 obfuscation params (Jc/S1-S4/H1-H4/I1)
+- [x] Cloudflare WARP config generator
+- [x] Daemon + IPC (non-blocking connect/disconnect)
+- [ ] Windows backend (Wintun)
+- [ ] System tray icon
+- [ ] Traffic statistics (rx/tx graph)
+- [ ] Autoconnect on startup
+- [ ] Packages (.deb, .rpm, AUR)
