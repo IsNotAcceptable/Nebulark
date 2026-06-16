@@ -10,18 +10,14 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+name = "Nebulark"
+version = "0.1.1"
 edition = "2021"
 authors = ["IsNotAcceptable"]
 license = "MIT"
 repository = "https://github.com/IsNotAcceptable/Nebulark"
 homepage = "https://github.com/IsNotAcceptable/Nebulark"
 description = "AmneziaWG 2.0 client for Linux and Windows"
-
-[package]
-name = "Nebulark"
-version = "0.1.0"
-edition = "2024"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"]}

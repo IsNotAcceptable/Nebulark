@@ -3,10 +3,6 @@
 version = 4
 
 [[package]]
-name = "Nebulark"
-version = "0.1.0"
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2209,7 +2205,7 @@ dependencies = [
 
 [[package]]
 name = "nebulark-awg"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -2222,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "nebulark-common"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -2231,7 +2227,7 @@ dependencies = [
 
 [[package]]
 name = "nebulark-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2246,7 +2242,7 @@ dependencies = [
 
 [[package]]
 name = "nebulark-platform-linux"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2262,7 +2258,7 @@ dependencies = [
 
 [[package]]
 name = "nebulark-platform-windows"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2277,7 +2273,7 @@ dependencies = [
 
 [[package]]
 name = "nebulark-ui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "dirs-next",
