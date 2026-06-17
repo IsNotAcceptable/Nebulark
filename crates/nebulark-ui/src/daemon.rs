@@ -79,11 +79,23 @@ pub fn spawn_daemon(exe: &std::path::Path, config_path: &str, profile: &str) -> 
     let log = std::env::temp_dir().join("nebulark-daemon.log");
     let log_file = std::fs::File::create(&log)?;
 
-    std::process::Command::new("sudo")
+    let result = std::process::Command::new("pkexec")
         .args([exe.to_str().unwrap(), "daemon", config_path, profile])
         .stdin(std::process::Stdio::null())
         .stdout(log_file.try_clone()?)
-        .stderr(log_file)
-        .spawn()?;
-    Ok(())
+        .stderr(log_file.try_clone()?)
+        .spawn();
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            std::process::Command::new("sudo")
+                .args([exe.to_str().unwrap(), "daemon", config_path, profile])
+                .stdin(std::process::Stdio::null())
+                .stdout(log_file.try_clone()?)
+                .stderr(log_file)
+                .spawn()?;
+            Ok(())
+        }
+    }
 }

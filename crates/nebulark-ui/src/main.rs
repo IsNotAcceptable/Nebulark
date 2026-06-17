@@ -1,5 +1,6 @@
 mod app;
 mod daemon;
+mod setup;
 
 use tracing_subscriber::EnvFilter;
 
@@ -29,6 +30,12 @@ fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
+    let exe = std::env::current_exe()?;
+    if let Err(e) = setup::ensure_polkit_policy(&exe) {
+        eprintln!("Warning: could not install polkit policy: {e}");
+        eprintln!("You may need to run with sudo manually");
+    }
+
     eframe::run_native(
         "Nebulark",
         options,
@@ -41,15 +48,19 @@ fn main() -> anyhow::Result<()> {
             );
             fonts.font_data.insert(
                 "noto_symbols".to_owned(),
-                egui::FontData::from_static(include_bytes!("../assets/NotoSansSymbols-Regular.ttf")),
+                egui::FontData::from_static(include_bytes!(
+                    "../assets/NotoSansSymbols-Regular.ttf"
+                )),
             );
 
-            fonts.families
+            fonts
+                .families
                 .entry(egui::FontFamily::Proportional)
                 .or_default()
                 .insert(0, "noto_sans".to_owned());
 
-            fonts.families
+            fonts
+                .families
                 .entry(egui::FontFamily::Proportional)
                 .or_default()
                 .push("noto_symbols".to_owned());
