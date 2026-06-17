@@ -52,10 +52,16 @@ pub struct NebularkApp {
     tx_history: Vec<f32>,
     last_rx: u64,
     last_tx: u64,
+    tray: Option<crate::tray::NebularkTray>,
+    menu_channel: std::sync::Arc<tray_icon::menu::MenuEventReceiver>,
 }
 
 impl NebularkApp {
-    pub fn new(_cc: &eframe::CreationContext) -> Self {
+    pub fn new(
+        _cc: &eframe::CreationContext,
+        tray: Option<crate::tray::NebularkTray>,
+        menu_channel: std::sync::Arc<tray_icon::menu::MenuEventReceiver>,
+    ) -> Self {
         let config_path = config_path();
         let profiles = load_profiles(&config_path);
         let connected = crate::daemon::is_connected();
@@ -80,6 +86,8 @@ impl NebularkApp {
             tx_history: vec![0.0; 60],
             last_rx: 0,
             last_tx: 0,
+            tray,
+            menu_channel,
         }
     }
 }
@@ -93,6 +101,37 @@ fn load_profiles(config_path: &str) -> Vec<String> {
 impl eframe::App for NebularkApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.set_visuals(egui::Visuals::dark());
+
+        while let Ok(event) = self.menu_channel.try_recv() {
+            if let Some(tray) = &self.tray {
+                if event.id == tray.quit_item_id {
+                    if self.state == ConnState::Connected {
+                        let _ = crate::daemon::disconnect();
+                    }
+                    std::process::exit(0);
+                } else if event.id == tray.open_item_id {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+                } else if event.id == tray.connect_item_id {
+                    if let Some(idx) = self.selected {
+                        let profile = self.profiles[idx].clone();
+                        let exe = std::env::current_exe().unwrap_or_default();
+                        if crate::daemon::spawn_daemon(&exe, &self.config_path, &profile).is_ok() {
+                            self.state = ConnState::Connecting;
+                            self.status_msg = format!("Connecting to {profile}...");
+                        }
+                    }
+                } else if event.id == tray.disconnect_item_id {
+                    let _ = crate::daemon::disconnect();
+                    self.state = ConnState::Disconnected;
+                    self.status_msg = "Disconnected".into();
+                }
+            }
+        }
+
+        if let Some(tray) = &mut self.tray {
+            tray.set_connected(self.state == ConnState::Connected);
+        }
 
         if self.state == ConnState::Connected
             && self.last_stats_update.elapsed() > Duration::from_secs(2)
@@ -111,7 +150,6 @@ impl eframe::App for NebularkApp {
                 if self.tx_history.len() > 60 {
                     self.tx_history.remove(0);
                 }
-
                 self.stats = Some(s);
             }
             ctx.request_repaint();
@@ -222,13 +260,13 @@ impl eframe::App for NebularkApp {
                                 .show(ui, |ui| {
                                     ui.set_min_width(available_w - 24.0);
                                     ui.label(
-                                        RichText::new(name).font(FontId::proportional(13.0)).color(
-                                            if selected {
+                                        RichText::new(name)
+                                            .font(FontId::proportional(13.0))
+                                            .color(if selected {
                                                 Color32::from_rgb(180, 220, 255)
                                             } else {
                                                 Color32::from_rgb(200, 200, 210)
-                                            },
-                                        ),
+                                            }),
                                     );
                                 });
 
@@ -261,8 +299,11 @@ impl eframe::App for NebularkApp {
                             if let Some(idx) = self.selected {
                                 let profile = self.profiles[idx].clone();
                                 let exe = std::env::current_exe().unwrap_or_default();
-                                match crate::daemon::spawn_daemon(&exe, &self.config_path, &profile)
-                                {
+                                match crate::daemon::spawn_daemon(
+                                    &exe,
+                                    &self.config_path,
+                                    &profile,
+                                ) {
                                     Ok(_) => {
                                         self.state = ConnState::Connecting;
                                         self.status_msg = format!("Connecting to {profile}...");
@@ -343,9 +384,12 @@ impl eframe::App for NebularkApp {
                                 );
                                 if let Some(last) = self.rx_history.last() {
                                     ui.label(
-                                        RichText::new(format!("{}/s", format_bytes(*last as u64)))
-                                            .font(FontId::proportional(10.0))
-                                            .color(Color32::from_rgb(80, 160, 100)),
+                                        RichText::new(format!(
+                                            "{}/s",
+                                            format_bytes(*last as u64)
+                                        ))
+                                        .font(FontId::proportional(10.0))
+                                        .color(Color32::from_rgb(80, 160, 100)),
                                     );
                                 }
                             });
@@ -366,9 +410,12 @@ impl eframe::App for NebularkApp {
                                 );
                                 if let Some(last) = self.tx_history.last() {
                                     ui.label(
-                                        RichText::new(format!("{}/s", format_bytes(*last as u64)))
-                                            .font(FontId::proportional(10.0))
-                                            .color(Color32::from_rgb(80, 120, 200)),
+                                        RichText::new(format!(
+                                            "{}/s",
+                                            format_bytes(*last as u64)
+                                        ))
+                                        .font(FontId::proportional(10.0))
+                                        .color(Color32::from_rgb(80, 120, 200)),
                                     );
                                 }
                             });
@@ -391,7 +438,6 @@ impl eframe::App for NebularkApp {
                         });
 
                         ui.add_space(8.0);
-
                         draw_traffic_graph(ui, &self.rx_history, &self.tx_history);
                     }
                 }
@@ -439,10 +485,7 @@ impl eframe::App for NebularkApp {
                                 if let Some(idx) = self.selected {
                                     let name = self.profiles[idx].clone();
                                     if let Ok(mut mgr) = ProfileManager::load(&self.config_path) {
-                                        match mgr.remove(&name) {
-                                            Ok(_) => eprintln!("Remove ok"),
-                                            Err(e) => eprintln!("Remove err: {e}"),
-                                        }
+                                        let _ = mgr.remove(&name);
                                     }
                                     self.profiles = load_profiles(&self.config_path);
                                     self.selected = None;
@@ -574,7 +617,6 @@ fn draw_traffic_graph(ui: &mut egui::Ui, rx: &[f32], tx: &[f32]) {
     }
 
     let max_val = rx.iter().chain(tx.iter()).cloned().fold(1.0_f32, f32::max);
-
     let n = rx.len();
     let w = rect.width() / n as f32;
 

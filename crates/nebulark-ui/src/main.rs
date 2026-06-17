@@ -1,6 +1,7 @@
 mod app;
 mod daemon;
 mod setup;
+mod tray;
 
 use tracing_subscriber::EnvFilter;
 
@@ -22,51 +23,56 @@ fn main() -> anyhow::Result<()> {
         return run_daemon(config, profile);
     }
 
+    let exe = std::env::current_exe()?;
+    if let Err(e) = setup::ensure_polkit_policy(&exe) {
+        eprintln!("Warning: could not install polkit policy: {e}");
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if !gtk::is_initialized() {
+            gtk::init().expect("Failed to initialize GTK");
+        }
+    }
+
+    let tray = tray::NebularkTray::new().ok();
+    let menu_channel = std::sync::Arc::new(
+        tray_icon::menu::MenuEvent::receiver().clone()
+    );
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Nebulark")
-            .with_inner_size([420.0, 520.0])
+            .with_inner_size([420.0, 680.0])
             .with_resizable(false),
         ..Default::default()
     };
 
-    let exe = std::env::current_exe()?;
-    if let Err(e) = setup::ensure_polkit_policy(&exe) {
-        eprintln!("Warning: could not install polkit policy: {e}");
-        eprintln!("You may need to run with sudo manually");
-    }
-
     eframe::run_native(
         "Nebulark",
         options,
-        Box::new(|cc| {
+        Box::new(move |cc| {
             let mut fonts = egui::FontDefinitions::default();
-
             fonts.font_data.insert(
-                "noto_sans".to_owned(),
+                "noto".to_owned(),
                 egui::FontData::from_static(include_bytes!("../assets/NotoSans-Regular.ttf")),
             );
             fonts.font_data.insert(
-                "noto_symbols".to_owned(),
+                "noto_sym".to_owned(),
                 egui::FontData::from_static(include_bytes!(
                     "../assets/NotoSansSymbols-Regular.ttf"
                 )),
             );
-
-            fonts
+            let proportional = fonts
                 .families
                 .entry(egui::FontFamily::Proportional)
-                .or_default()
-                .insert(0, "noto_sans".to_owned());
-
-            fonts
-                .families
-                .entry(egui::FontFamily::Proportional)
-                .or_default()
-                .push("noto_symbols".to_owned());
-
+                .or_default();
+            proportional.clear();
+            proportional.push("noto".to_owned());
+            proportional.push("noto_sym".to_owned());
             cc.egui_ctx.set_fonts(fonts);
-            Box::new(app::NebularkApp::new(cc))
+
+            Box::new(app::NebularkApp::new(cc, tray, menu_channel))
         }),
     )
     .map_err(|e| anyhow::anyhow!("{e}"))
@@ -84,9 +90,8 @@ async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()
         .tunnel
         .clone();
 
-    let backend: Arc<dyn PlatformBackend> = Arc::new(
-        nebulark_platform_linux::backend::LinuxBackend::new("nebulark0"),
-    );
+    let backend: Arc<dyn PlatformBackend> =
+        Arc::new(nebulark_platform_linux::backend::LinuxBackend::new("nebulark0"));
     let tunnel = Arc::new(nebulark_core::tunnel::TunnelManager::new(backend));
 
     if let Err(e) = tunnel.connect(&cfg).await {
@@ -155,7 +160,6 @@ async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()
 
 fn fetch_stats(iface: &str) -> daemon::TunnelStats {
     let mut stats = daemon::TunnelStats::default();
-
     let out = match std::process::Command::new("awg")
         .args(["show", iface, "dump"])
         .output()
@@ -163,9 +167,7 @@ fn fetch_stats(iface: &str) -> daemon::TunnelStats {
         Ok(o) => o,
         Err(_) => return stats,
     };
-
     let text = String::from_utf8_lossy(&out.stdout);
-
     for line in text.lines().skip(1) {
         let fields: Vec<&str> = line.split('\t').collect();
         if fields.len() >= 7 {

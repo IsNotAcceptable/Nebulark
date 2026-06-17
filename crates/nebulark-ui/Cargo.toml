@@ -24,3 +24,8 @@ dirs-next = "2"
 nix = { version = "0.27", features = ["user"] }
 serde = { version = "1.0.228", features = ["derive"] }
 rfd = "0.14"
+tray-icon = { version = "0.19.3" }
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
