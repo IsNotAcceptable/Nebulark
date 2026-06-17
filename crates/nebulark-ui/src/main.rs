@@ -36,9 +36,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let tray = tray::NebularkTray::new().ok();
-    let menu_channel = std::sync::Arc::new(
-        tray_icon::menu::MenuEvent::receiver().clone()
-    );
+    let menu_channel = std::sync::Arc::new(tray_icon::menu::MenuEvent::receiver().clone());
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -90,8 +88,9 @@ async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()
         .tunnel
         .clone();
 
-    let backend: Arc<dyn PlatformBackend> =
-        Arc::new(nebulark_platform_linux::backend::LinuxBackend::new("nebulark0"));
+    let backend: Arc<dyn PlatformBackend> = Arc::new(
+        nebulark_platform_linux::backend::LinuxBackend::new("nebulark0"),
+    );
     let tunnel = Arc::new(nebulark_core::tunnel::TunnelManager::new(backend));
 
     if let Err(e) = tunnel.connect(&cfg).await {

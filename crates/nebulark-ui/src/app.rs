@@ -260,13 +260,13 @@ impl eframe::App for NebularkApp {
                                 .show(ui, |ui| {
                                     ui.set_min_width(available_w - 24.0);
                                     ui.label(
-                                        RichText::new(name)
-                                            .font(FontId::proportional(13.0))
-                                            .color(if selected {
+                                        RichText::new(name).font(FontId::proportional(13.0)).color(
+                                            if selected {
                                                 Color32::from_rgb(180, 220, 255)
                                             } else {
                                                 Color32::from_rgb(200, 200, 210)
-                                            }),
+                                            },
+                                        ),
                                     );
                                 });
 
@@ -299,11 +299,8 @@ impl eframe::App for NebularkApp {
                             if let Some(idx) = self.selected {
                                 let profile = self.profiles[idx].clone();
                                 let exe = std::env::current_exe().unwrap_or_default();
-                                match crate::daemon::spawn_daemon(
-                                    &exe,
-                                    &self.config_path,
-                                    &profile,
-                                ) {
+                                match crate::daemon::spawn_daemon(&exe, &self.config_path, &profile)
+                                {
                                     Ok(_) => {
                                         self.state = ConnState::Connecting;
                                         self.status_msg = format!("Connecting to {profile}...");
@@ -384,12 +381,9 @@ impl eframe::App for NebularkApp {
                                 );
                                 if let Some(last) = self.rx_history.last() {
                                     ui.label(
-                                        RichText::new(format!(
-                                            "{}/s",
-                                            format_bytes(*last as u64)
-                                        ))
-                                        .font(FontId::proportional(10.0))
-                                        .color(Color32::from_rgb(80, 160, 100)),
+                                        RichText::new(format!("{}/s", format_bytes(*last as u64)))
+                                            .font(FontId::proportional(10.0))
+                                            .color(Color32::from_rgb(80, 160, 100)),
                                     );
                                 }
                             });
@@ -410,12 +404,9 @@ impl eframe::App for NebularkApp {
                                 );
                                 if let Some(last) = self.tx_history.last() {
                                     ui.label(
-                                        RichText::new(format!(
-                                            "{}/s",
-                                            format_bytes(*last as u64)
-                                        ))
-                                        .font(FontId::proportional(10.0))
-                                        .color(Color32::from_rgb(80, 120, 200)),
+                                        RichText::new(format!("{}/s", format_bytes(*last as u64)))
+                                            .font(FontId::proportional(10.0))
+                                            .color(Color32::from_rgb(80, 120, 200)),
                                     );
                                 }
                             });

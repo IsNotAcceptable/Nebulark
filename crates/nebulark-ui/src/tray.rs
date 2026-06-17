@@ -55,9 +55,7 @@ impl NebularkTray {
         };
         self._tray.set_tooltip(Some(tooltip)).ok();
         self._tray
-            .set_icon(Some(
-                load_icon().unwrap_or_else(|_| load_icon().unwrap()),
-            ))
+            .set_icon(Some(load_icon().unwrap_or_else(|_| load_icon().unwrap())))
             .ok();
         let _ = connected;
     }
