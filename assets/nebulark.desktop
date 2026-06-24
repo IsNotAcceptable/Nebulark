@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Nebulark
+GenericName=VPN Client
+Comment=AmneziaWG 2.0 VPN client
+Exec=nebulark
+Icon=nebulark
+Type=Application
+Categories=Network;
+Keywords=VPN;WireGuard;AmneziaWG;privacy;tunnel;
+StartupNotify=true
+StartupWMClass=nebulark

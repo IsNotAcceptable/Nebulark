@@ -14,12 +14,34 @@ pub fn pid_path() -> PathBuf {
 pub enum IpcRequest {
     Disconnect,
     Status,
+    Stats,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IpcResponse {
     pub ok: bool,
     pub message: String,
+    pub stats: Option<TunnelStats>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TunnelStats {
+    pub rx_bytes: u64,
+    pub tx_bytes: u64,
+    pub last_handshake_secs: Option<u64>,
+}
+
+pub fn get_stats() -> anyhow::Result<TunnelStats> {
+    use std::io::{Read, Write};
+    use std::os::unix::net::UnixStream;
+
+    let mut stream = UnixStream::connect(socket_path())?;
+    let req = serde_json::to_string(&IpcRequest::Stats)?;
+    stream.write_all((req + "\n").as_bytes())?;
+    let mut buf = String::new();
+    stream.read_to_string(&mut buf)?;
+    let resp: IpcResponse = serde_json::from_str(&buf)?;
+    Ok(resp.stats.unwrap_or_default())
 }
 
 pub fn is_connected() -> bool {
@@ -57,11 +79,23 @@ pub fn spawn_daemon(exe: &std::path::Path, config_path: &str, profile: &str) -> 
     let log = std::env::temp_dir().join("nebulark-daemon.log");
     let log_file = std::fs::File::create(&log)?;
 
-    std::process::Command::new("sudo")
+    let result = std::process::Command::new("pkexec")
         .args([exe.to_str().unwrap(), "daemon", config_path, profile])
         .stdin(std::process::Stdio::null())
         .stdout(log_file.try_clone()?)
-        .stderr(log_file)
-        .spawn()?;
-    Ok(())
+        .stderr(log_file.try_clone()?)
+        .spawn();
+
+    match result {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            std::process::Command::new("sudo")
+                .args([exe.to_str().unwrap(), "daemon", config_path, profile])
+                .stdin(std::process::Stdio::null())
+                .stdout(log_file.try_clone()?)
+                .stderr(log_file)
+                .spawn()?;
+            Ok(())
+        }
+    }
 }

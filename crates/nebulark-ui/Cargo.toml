@@ -3,6 +3,25 @@ name = "nebulark-ui"
 version.workspace = true
 edition.workspace = true
 
+[package.metadata.appimage]
+assets = [
+    "assets/icons/nebulark-32.png",
+    "assets/nebulark.desktop",
+]
+auto_link = true
+auto_link_exclude_list = [
+    "libglib*",
+    "libgtk*",
+    "libgdk*",
+    "libgio*",
+    "libpango*",
+    "libcairo*",
+    "libatk*",
+    "libgdk_pixbuf*",
+    "libgobject*",
+    "libwayland*",
+]
+
 [[bin]]
 name = "nebulark"
 path = "src/main.rs"
@@ -24,3 +43,8 @@ dirs-next = "2"
 nix = { version = "0.27", features = ["user"] }
 serde = { version = "1.0.228", features = ["derive"] }
 rfd = "0.14"
+tray-icon = { version = "0.19", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }

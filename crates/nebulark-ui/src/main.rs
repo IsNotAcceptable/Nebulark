@@ -1,5 +1,7 @@
 mod app;
 mod daemon;
+mod setup;
+mod tray;
 
 use tracing_subscriber::EnvFilter;
 
@@ -21,10 +23,25 @@ fn main() -> anyhow::Result<()> {
         return run_daemon(config, profile);
     }
 
+    let exe = std::env::current_exe()?;
+    if let Err(e) = setup::ensure_polkit_policy(&exe) {
+        eprintln!("Warning: could not install polkit policy: {e}");
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if !gtk::is_initialized() {
+            gtk::init().expect("Failed to initialize GTK");
+        }
+    }
+
+    let tray = tray::NebularkTray::new().ok();
+    let menu_channel = std::sync::Arc::new(tray_icon::menu::MenuEvent::receiver().clone());
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Nebulark")
-            .with_inner_size([420.0, 520.0])
+            .with_inner_size([420.0, 680.0])
             .with_resizable(false),
         ..Default::default()
     };
@@ -32,7 +49,29 @@ fn main() -> anyhow::Result<()> {
     eframe::run_native(
         "Nebulark",
         options,
-        Box::new(|cc| Box::new(app::NebularkApp::new(cc))),
+        Box::new(move |cc| {
+            let mut fonts = egui::FontDefinitions::default();
+            fonts.font_data.insert(
+                "noto".to_owned(),
+                egui::FontData::from_static(include_bytes!("../assets/NotoSans-Regular.ttf")),
+            );
+            fonts.font_data.insert(
+                "noto_sym".to_owned(),
+                egui::FontData::from_static(include_bytes!(
+                    "../assets/NotoSansSymbols-Regular.ttf"
+                )),
+            );
+            let proportional = fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default();
+            proportional.clear();
+            proportional.push("noto".to_owned());
+            proportional.push("noto_sym".to_owned());
+            cc.egui_ctx.set_fonts(fonts);
+
+            Box::new(app::NebularkApp::new(cc, tray, menu_channel))
+        }),
     )
     .map_err(|e| anyhow::anyhow!("{e}"))
 }
@@ -84,22 +123,30 @@ async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()
                         let r = daemon::IpcResponse {
                             ok: true,
                             message: "Disconnected".into(),
+                            stats: None,
                         };
                         let _ = writer
                             .write_all((serde_json::to_string(&r).unwrap() + "\n").as_bytes())
                             .await;
                         std::process::exit(0);
                     }
-                    Ok(daemon::IpcRequest::Status) => {
-                        let state = tunnel.state().await;
+                    Ok(daemon::IpcRequest::Stats) => {
+                        let stats = fetch_stats("nebulark0");
                         daemon::IpcResponse {
                             ok: true,
-                            message: format!("{state:?}"),
+                            message: "ok".into(),
+                            stats: Some(stats),
                         }
                     }
+                    Ok(daemon::IpcRequest::Status) => daemon::IpcResponse {
+                        ok: true,
+                        message: "ok".into(),
+                        stats: None,
+                    },
                     Err(e) => daemon::IpcResponse {
                         ok: false,
                         message: e.to_string(),
+                        stats: None,
                     },
                 };
                 let _ = writer
@@ -108,6 +155,29 @@ async fn run_daemon_async(config_path: &str, profile: &str) -> anyhow::Result<()
             }
         });
     }
+}
+
+fn fetch_stats(iface: &str) -> daemon::TunnelStats {
+    let mut stats = daemon::TunnelStats::default();
+    let out = match std::process::Command::new("awg")
+        .args(["show", iface, "dump"])
+        .output()
+    {
+        Ok(o) => o,
+        Err(_) => return stats,
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    for line in text.lines().skip(1) {
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields.len() >= 7 {
+            stats.rx_bytes += fields[5].parse::<u64>().unwrap_or(0);
+            stats.tx_bytes += fields[6].parse::<u64>().unwrap_or(0);
+            if stats.last_handshake_secs.is_none() {
+                stats.last_handshake_secs = fields[4].parse().ok();
+            }
+        }
+    }
+    stats
 }
 
 fn run_daemon(config_path: &str, profile: &str) -> anyhow::Result<()> {

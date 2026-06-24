@@ -305,6 +305,6 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 - [x] Daemon + IPC (non-blocking connect/disconnect)
 - [ ] Windows backend (Wintun)
 - [ ] System tray icon
-- [ ] Traffic statistics (rx/tx graph)
+- [x] Traffic statistics (rx/tx graph)
 - [ ] Autoconnect on startup
 - [ ] Packages (.deb, .rpm, AUR)
