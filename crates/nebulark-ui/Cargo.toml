@@ -3,6 +3,25 @@ name = "nebulark-ui"
 version.workspace = true
 edition.workspace = true
 
+[package.metadata.appimage]
+assets = [
+    "assets/icons/nebulark-32.png",
+    "assets/nebulark.desktop",
+]
+auto_link = true
+auto_link_exclude_list = [
+    "libglib*",
+    "libgtk*",
+    "libgdk*",
+    "libgio*",
+    "libpango*",
+    "libcairo*",
+    "libatk*",
+    "libgdk_pixbuf*",
+    "libgobject*",
+    "libwayland*",
+]
+
 [[bin]]
 name = "nebulark"
 path = "src/main.rs"
